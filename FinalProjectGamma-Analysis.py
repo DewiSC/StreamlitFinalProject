@@ -1,21 +1,25 @@
 import streamlit as st
 import pickle
 import pandas as pd
-import category_encoders as ce
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
+import os  # Untuk pengecekan file
 
-# Load Model yang sudah disimpan
-model = pickle.load(open('Dataset/Model_final.pkl', 'rb'))
+# Pastikan Model & Encoder Tersedia
+MODEL_PATH = "Dataset/Model_final.pkl"
+ENCODER_PATH = "Dataset/encoder.pkl"
 
-# Load Encoder yang sudah dilatih
-encoder = pickle.load(open('Dataset/encoder.pkl', 'rb'))  # Encoder harus disimpan saat training
+if not os.path.exists(MODEL_PATH) or not os.path.exists(ENCODER_PATH):
+    st.error("🚨 Model atau Encoder tidak ditemukan! Pastikan file tersedia di folder Dataset.")
+    st.stop()
+
+# Load Model dan Encoder
+model = pickle.load(open(MODEL_PATH, 'rb'))
+encoder = pickle.load(open(ENCODER_PATH, 'rb'))
 
 # Judul Aplikasi
-st.title("Hotel Booking Cancellation Prediction")
+st.title("🏨 Hotel Booking Cancellation Prediction")
 
-# Form input untuk memasukkan fitur prediksi
-st.sidebar.header("Masukkan Data Pemesanan:")
+# Sidebar Input
+st.sidebar.header("📌 Masukkan Data Pemesanan:")
 
 def user_input():
     lead_time = st.sidebar.slider("Lead Time (Hari)", 0, 365, 100)
@@ -27,7 +31,7 @@ def user_input():
     required_car_parking_spaces = st.sidebar.slider("Required Car Parking Spaces", 0, 5, 0)
     total_special_requests = st.sidebar.slider("Total Special Requests", 0, 5, 1)
     length_of_stay = st.sidebar.slider("Length of Stay", 1, 30, 3)
-    is_repeated_guest = st.sidebar.radio("Is Repeated Guest?", [0, 1])  # Binary input
+    is_repeated_guest = st.sidebar.radio("Is Repeated Guest?", [0, 1])
 
     # Input kategorikal
     meal = st.sidebar.selectbox("Meal", ['BB', 'FB', 'HB', 'SC', 'Undefined'])
@@ -37,7 +41,7 @@ def user_input():
     assigned_room_type = st.sidebar.selectbox("Assigned Room Type", ['Standard', 'Superior', 'Deluxe', 'Suite'])
     deposit_type = st.sidebar.selectbox("Deposit Type", ['No Deposit', 'Non Refund', 'Refundable'])
     customer_type = st.sidebar.selectbox("Customer Type", ['Transient', 'Contract', 'Group'])
-    stay_category = st.sidebar.selectbox("Stay Category", ['Short', 'Medium', 'Long'])
+    stay_category = st.sidebar.selectbox("Stay Category", ['Short Stay', 'Medium Stay', 'Long Stay'])
 
     # Data dalam bentuk dictionary
     data = {
@@ -66,34 +70,40 @@ def user_input():
 # Ambil input dari user
 input_df = user_input()
 
-# Tampilkan input data sebelum encoding
-st.subheader("Data Pemesanan yang Dimasukkan (Sebelum Encoding):")
+# Tampilkan data sebelum encoding
+st.subheader("📋 Data Pemesanan Sebelum Encoding:")
 st.write(input_df)
 
 # Pastikan fitur input_df sesuai dengan model
-expected_features = model.feature_names_in_  # Daftar fitur yang digunakan saat training
+expected_features = model.feature_names_in_
 
-# Terapkan encoder ke input user agar sesuai dengan format model
-input_encoded = encoder.transform(input_df)
+# Terapkan encoder ke input user
+try:
+    input_encoded = encoder.transform(input_df)
+except Exception as e:
+    st.error(f"🚨 Terjadi kesalahan saat encoding: {e}")
+    st.stop()
 
-# Pastikan kolom sesuai dengan model
-for feature in expected_features:
-    if feature not in input_encoded.columns:
-        input_encoded[feature] = 0  # Tambahkan fitur yang hilang dengan default 0
+# Perbaiki kolom agar sesuai dengan model
+missing_features = [col for col in expected_features if col not in input_encoded.columns]
+
+for feature in missing_features:
+    input_encoded[feature] = 0  # Tambahkan fitur yang hilang dengan default 0
 
 # Urutkan kolom sesuai model
 input_encoded = input_encoded[expected_features]
 
-# Tampilkan input data setelah encoding
-st.subheader("Data Setelah Encoding:")
+# Tampilkan data setelah encoding
+st.subheader("🔍 Data Setelah Encoding:")
 st.write(input_encoded)
 
 # Prediksi dengan model
-if st.button("Prediksi Pembatalan"):
-    prediction = model.predict(input_encoded)
-
-    # Interpretasi hasil
-    if prediction[0] == 1:
-        st.error("\U0001F6A8 Booking kemungkinan besar akan DIBATALKAN!")
-    else:
-        st.success("✅ Booking kemungkinan besar akan DILANJUTKAN!")
+if st.button("🔮 Prediksi Pembatalan"):
+    try:
+        prediction = model.predict(input_encoded)
+        if prediction[0] == 1:
+            st.error("❌ Booking kemungkinan besar akan **DIBATALKAN**! 🚨")
+        else:
+            st.success("✅ Booking kemungkinan besar akan **DILANJUTKAN**! 🎉")
+    except Exception as e:
+        st.error(f"⚠️ Terjadi kesalahan saat prediksi: {e}")
