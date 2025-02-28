@@ -6,7 +6,12 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
 # Load Model yang sudah disimpan
-model = pickle.load(open('Dataset/Model_final.pkl', 'rb'))
+# model = pickle.load(open('Dataset/Model_final.pkl', 'rb'))
+
+base_path = os.path.dirname(os.path.abspath(__file__))  # Path ke direktori script
+model_path = os.path.join(base_path, "Dataset", "Model_final.pkl")
+
+model = pickle.load(open(model_path, 'rb'))
 
 # Load Encoder yang sudah dilatih
 encoder = pickle.load(open('Dataset/encoder.pkl', 'rb'))  # Encoder harus disimpan saat training
